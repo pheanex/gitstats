@@ -4,6 +4,10 @@ Priority: optional
 Maintainer: Vincent Fourmond <fourmond@debian.org>
 Build-Depends: debhelper (>= 5)
 Standards-Version: 3.8.3
+Homepage: http://gitstats.sourceforge.net/
+Vcs-Git: git://git.debian.org/git/users/fourmond/packages/gitstats.git
+Vcs-Browser: http://git.debian.org/?p=users/fourmond/packages/gitstats.git
+
 
 Package: gitstats
 Architecture: all
