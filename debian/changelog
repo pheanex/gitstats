@@ -1,5 +1,6 @@
 gitstats (2009.09.10-1) unstable; urgency=low
 
   * Initial debian packaging (closes: #440392)
+  * Wrote a manual page
 
- -- Vincent Fourmond <fourmond@debian.org>  Thu, 10 Sep 2009 21:26:44 +0200
+ -- Vincent Fourmond <fourmond@debian.org>  Thu, 10 Sep 2009 21:42:46 +0200
