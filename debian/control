@@ -1,0 +1,16 @@
+Source: gitstats
+Section: vcs
+Priority: optional
+Maintainer: Vincent Fourmond <fourmond@debian.org>
+Build-Depends: debhelper (>= 5)
+Standards-Version: 3.8.3
+
+Package: gitstats
+Architecture: all
+Depends: python (>= 2.4.4), git-core (>= 1.5.2.4), gnuplot-nox (>= 4.0)
+Description: statistics generator for git repositories
+ GitStats is a statistics generator for git repositories. It examines
+ the repository and produces some interesting statistics from the
+ history. Currently it outputs only HTML.
+ .
+ It is the equivalent of statcvs and statsvn for git repositories.
