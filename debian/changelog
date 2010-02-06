@@ -1,3 +1,12 @@
+gitstats (2010.02.06-1) unstable; urgency=low
+
+  * Pulling newer upstream version from its git repository
+  * Fix the missing epoch in depends on git-core, thanks to Jonathan
+    Nieder <jrnieder@gmail.com> for finding out (closes: #568584)
+  * Already conforms to standards 3.8.4
+
+ -- Vincent Fourmond <fourmond@debian.org>  Sat, 06 Feb 2010 09:38:53 +0100
+
 gitstats (2009.09.10-1) unstable; urgency=low
 
   * Initial debian packaging (closes: #440392)
