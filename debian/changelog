@@ -5,8 +5,9 @@ gitstats (2010.02.06-1) unstable; urgency=low
     Nieder <jrnieder@gmail.com> for finding out (closes: #568584)
   * Already conforms to standards 3.8.4
   * Switch to source format 3.0 (quilt)
+  * Take care of possible dh-induced dependencies
 
- -- Vincent Fourmond <fourmond@debian.org>  Sat, 06 Feb 2010 09:45:56 +0100
+ -- Vincent Fourmond <fourmond@debian.org>  Sat, 06 Feb 2010 09:49:10 +0100
 
 gitstats (2009.09.10-1) unstable; urgency=low
 

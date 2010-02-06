@@ -11,7 +11,8 @@ Vcs-Browser: http://git.debian.org/?p=users/fourmond/packages/gitstats.git
 
 Package: gitstats
 Architecture: all
-Depends: python (>= 2.4.4), git-core (>= 1:1.5.2.4), gnuplot-nox (>= 4.0)
+Depends: python (>= 2.4.4), git-core (>= 1:1.5.2.4), gnuplot-nox (>= 4.0),
+	 ${misc:Depends}
 Description: statistics generator for git repositories
  GitStats is a statistics generator for git repositories. It examines
  the repository and produces some interesting statistics from the
