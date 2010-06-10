@@ -1,3 +1,10 @@
+gitstats (2010.06.10-1) unstable; urgency=low
+
+  * Pulling upstream until 2c38acfd051755
+  * Includes a fix for deprecated string exceptions (closes: 585225)
+
+ -- Vincent Fourmond <fourmond@debian.org>  Thu, 10 Jun 2010 20:52:05 +0200
+
 gitstats (2010.02.06-1) unstable; urgency=low
 
   * Pulling newer upstream version from its git repository
