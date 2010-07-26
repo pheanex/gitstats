@@ -1,3 +1,9 @@
+gitstats (2010.07.27-1) unstable; urgency=low
+
+  * Pulling upstream until e98d2c93501a60
+
+ -- Vincent Fourmond <fourmond@debian.org>  Tue, 27 Jul 2010 00:30:07 +0200
+
 gitstats (2010.06.10-1) unstable; urgency=low
 
   * Pulling upstream until 2c38acfd051755
