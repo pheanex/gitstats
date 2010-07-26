@@ -3,7 +3,7 @@ Section: vcs
 Priority: optional
 Maintainer: Vincent Fourmond <fourmond@debian.org>
 Build-Depends: debhelper (>= 5)
-Standards-Version: 3.8.4
+Standards-Version: 3.9.1
 Homepage: http://gitstats.sourceforge.net/
 Vcs-Git: git://git.debian.org/git/users/fourmond/packages/gitstats.git
 Vcs-Browser: http://git.debian.org/?p=users/fourmond/packages/gitstats.git
