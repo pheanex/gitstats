@@ -2,8 +2,13 @@ gitstats (2010.09.28-1) unstable; urgency=low
 
   * Pulling new upstream revisions (until dc0bbb2)
   * Make VERSION the Debian version (closes: #595971)
+  * Now using upstream's manpage, rather not clever of me not to notice
+    before !
+  * Updating dependencies to follow git package name change 
+    (closes: #600236). Many thanks to Denis Laxalde <dlaxalde@gmail.com> 
+    for the bug report and the fix !
 
- -- Vincent Fourmond <fourmond@debian.org>  Sat, 16 Oct 2010 13:45:27 +0200
+ -- Vincent Fourmond <fourmond@debian.org>  Sat, 16 Oct 2010 13:59:54 +0200
 
 gitstats (2010.07.27-1) unstable; urgency=low
 

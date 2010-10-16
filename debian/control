@@ -2,7 +2,7 @@ Source: gitstats
 Section: vcs
 Priority: optional
 Maintainer: Vincent Fourmond <fourmond@debian.org>
-Build-Depends: debhelper (>= 5)
+Build-Depends: debhelper (>= 5), perl
 Standards-Version: 3.9.1
 Homepage: http://gitstats.sourceforge.net/
 Vcs-Git: git://git.debian.org/git/users/fourmond/packages/gitstats.git
@@ -11,8 +11,8 @@ Vcs-Browser: http://git.debian.org/?p=users/fourmond/packages/gitstats.git
 
 Package: gitstats
 Architecture: all
-Depends: python (>= 2.4.4), git-core (>= 1:1.5.2.4), gnuplot-nox (>= 4.0),
-	 ${misc:Depends}
+Depends: python (>= 2.4.4), git (>= 1:1.7) | git-core (>= 1:1.5.2.4),
+ gnuplot-nox (>= 4.0),${misc:Depends}
 Description: statistics generator for git repositories
  GitStats is a statistics generator for git repositories. It examines
  the repository and produces some interesting statistics from the

@@ -1,5 +1,9 @@
 #!/usr/bin/make -f
 
+# TODO: I should use upstream's Makefile with VERSION=$(VERSION) for
+# installation, that would stop me making the same work as upstream's
+# Makefile.
+
 TMPDIR = tmp-debian-build
 VERSION =  $(shell dpkg-parsechangelog | egrep '^Version' | \
         sed -r 's/Version:\s*//' | sed -r 's/^[0-9]+://' | \
@@ -9,7 +13,8 @@ VERSION =  $(shell dpkg-parsechangelog | egrep '^Version' | \
 build:
 	mkdir -p $(TMPDIR)
 	cat gitstats | perl -p -e 's/VERSION = 0/VERSION = "$(VERSION)"/' > $(TMPDIR)/gitstats
-	$(MAKE) man
+	pod2man --center "User Commands" -r $(VERSION) doc/gitstats.pod > doc/gitstats.1
+
 
 clean:
 	rm -rf $(TMPDIR)
