@@ -1,3 +1,10 @@
+gitstats (2010.09.28-1) unstable; urgency=low
+
+  * Pulling new upstream revisions (until dc0bbb2)
+  * Make VERSION the Debian version (closes: #595971)
+
+ -- Vincent Fourmond <fourmond@debian.org>  Sat, 16 Oct 2010 13:45:27 +0200
+
 gitstats (2010.07.27-1) unstable; urgency=low
 
   * Pulling upstream until e98d2c93501a60

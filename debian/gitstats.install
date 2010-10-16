@@ -1,4 +1,4 @@
-gitstats usr/bin
+tmp-debian-build/gitstats usr/bin
 *.gif usr/share/gitstats
 sortable.js usr/share/gitstats
 gitstats.css usr/share/gitstats
