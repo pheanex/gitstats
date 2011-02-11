@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2007-2010 Heikki Hokkanen <hoxu@users.sf.net> & others (see doc/author.txt)
+# Copyright (c) 2007-2011 Heikki Hokkanen <hoxu@users.sf.net> & others (see doc/author.txt)
 # GPLv2 / GPLv3
 import datetime
 import getopt
@@ -14,7 +14,7 @@ import sys
 import time
 import zlib
 
-GNUPLOT_COMMON = 'set terminal png transparent\nset size 1.0,0.5\n'
+GNUPLOT_COMMON = 'set terminal png transparent size 640,240\nset size 1.0,1.0\n'
 ON_LINUX = (platform.system() == 'Linux')
 WEEKDAYS = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
 
@@ -36,6 +36,8 @@ conf = {
 	'authors_top': 5,
 	'commit_begin': '',
 	'commit_end': '',
+	'linear_linestats': 1,
+	'project_name': '',
 }
 
 def getpipeoutput(cmds, quiet = False):
@@ -58,7 +60,7 @@ def getpipeoutput(cmds, quiet = False):
 	exectime_external += (end - start)
 	return output.rstrip('\n')
 
-def getcommitrange(defaultrange = '', end_only = False):
+def getcommitrange(defaultrange = 'HEAD', end_only = False):
 	if len(conf['commit_end']) > 0:
 		if end_only or len(conf['commit_begin']) == 0:
 			return conf['commit_end']
@@ -79,17 +81,73 @@ def getversion():
 		VERSION = getpipeoutput(["git rev-parse --short %s" % getcommitrange('HEAD')]).split('\n')[0]
 	return VERSION
 
+def getgitversion():
+	return getpipeoutput(['git --version']).split('\n')[0]
+
+def getgnuplotversion():
+	return getpipeoutput(['gnuplot --version']).split('\n')[0]
+
 class DataCollector:
 	"""Manages data collection from a revision control repository."""
 	def __init__(self):
 		self.stamp_created = time.time()
 		self.cache = {}
-	
+		self.total_authors = 0
+		self.activity_by_hour_of_day = {} # hour -> commits
+		self.activity_by_day_of_week = {} # day -> commits
+		self.activity_by_month_of_year = {} # month [1-12] -> commits
+		self.activity_by_hour_of_week = {} # weekday -> hour -> commits
+		self.activity_by_hour_of_day_busiest = 0
+		self.activity_by_hour_of_week_busiest = 0
+		self.activity_by_year_week = {} # yy_wNN -> commits
+		self.activity_by_year_week_peak = 0
+
+		self.authors = {} # name -> {commits, first_commit_stamp, last_commit_stamp, last_active_day, active_days, lines_added, lines_removed}
+
+		self.total_commits = 0
+		self.total_files = 0
+		self.authors_by_commits = 0
+
+		# domains
+		self.domains = {} # domain -> commits
+
+		# author of the month
+		self.author_of_month = {} # month -> author -> commits
+		self.author_of_year = {} # year -> author -> commits
+		self.commits_by_month = {} # month -> commits
+		self.commits_by_year = {} # year -> commits
+		self.first_commit_stamp = 0
+		self.last_commit_stamp = 0
+		self.last_active_day = None
+		self.active_days = set()
+
+		# lines
+		self.total_lines = 0
+		self.total_lines_added = 0
+		self.total_lines_removed = 0
+
+		# timezone
+		self.commits_by_timezone = {} # timezone -> commits
+
+		# tags
+		self.tags = {}
+
+		self.files_by_stamp = {} # stamp -> files
+
+		# extensions
+		self.extensions = {} # extension -> files, lines
+
+		# line statistics
+		self.changes_by_date = {} # stamp -> { files, ins, del }
+
 	##
 	# This should be the main function to extract data from the repository.
 	def collect(self, dir):
 		self.dir = dir
-		self.projectname = os.path.basename(os.path.abspath(dir))
+		if len(conf['project_name']) == 0:
+			self.projectname = os.path.basename(os.path.abspath(dir))
+		else:
+			self.projectname = conf['project_name']
 	
 	##
 	# Load cacheable data
@@ -170,45 +228,12 @@ class GitDataCollector(DataCollector):
 		DataCollector.collect(self, dir)
 
 		try:
-			self.total_authors = int(getpipeoutput(['git shortlog -s %s' % getcommitrange(), 'wc -l']))
+			self.total_authors += int(getpipeoutput(['git shortlog -s %s' % getcommitrange(), 'wc -l']))
 		except:
 			self.total_authors = 0
 		#self.total_lines = int(getoutput('git-ls-files -z |xargs -0 cat |wc -l'))
 
-		self.activity_by_hour_of_day = {} # hour -> commits
-		self.activity_by_day_of_week = {} # day -> commits
-		self.activity_by_month_of_year = {} # month [1-12] -> commits
-		self.activity_by_hour_of_week = {} # weekday -> hour -> commits
-		self.activity_by_hour_of_day_busiest = 0
-		self.activity_by_hour_of_week_busiest = 0
-		self.activity_by_year_week = {} # yy_wNN -> commits
-		self.activity_by_year_week_peak = 0
-
-		self.authors = {} # name -> {commits, first_commit_stamp, last_commit_stamp, last_active_day, active_days, lines_added, lines_removed}
-
-		# domains
-		self.domains = {} # domain -> commits
-
-		# author of the month
-		self.author_of_month = {} # month -> author -> commits
-		self.author_of_year = {} # year -> author -> commits
-		self.commits_by_month = {} # month -> commits
-		self.commits_by_year = {} # year -> commits
-		self.first_commit_stamp = 0
-		self.last_commit_stamp = 0
-		self.last_active_day = None
-		self.active_days = set()
-
-		# lines
-		self.total_lines = 0
-		self.total_lines_added = 0
-		self.total_lines_removed = 0
-
-		# timezone
-		self.commits_by_timezone = {} # timezone -> commits
-
 		# tags
-		self.tags = {}
 		lines = getpipeoutput(['git show-ref --tags']).split('\n')
 		for line in lines:
 			if len(line) == 0:
@@ -241,7 +266,7 @@ class GitDataCollector(DataCollector):
 				parts = re.split('\s+', line, 2)
 				commits = int(parts[1])
 				author = parts[2]
-				self.tags[tag]['commits'] += commits
+				self.tags[tag]['commits'] = commits
 				self.tags[tag]['authors'][author] = commits
 
 		# Collect revision statistics
@@ -263,10 +288,11 @@ class GitDataCollector(DataCollector):
 				domain = mail.rsplit('@', 1)[1]
 			date = datetime.datetime.fromtimestamp(float(stamp))
 
-			# First and last commit stamp
-			if self.last_commit_stamp == 0:
+			# First and last commit stamp (may be in any order because of cherry-picking and patches)
+			if stamp > self.last_commit_stamp:
 				self.last_commit_stamp = stamp
-			self.first_commit_stamp = stamp
+			if self.first_commit_stamp == 0 or stamp < self.first_commit_stamp:
+				self.first_commit_stamp = stamp
 
 			# activity
 			# hour
@@ -307,11 +333,15 @@ class GitDataCollector(DataCollector):
 			# author stats
 			if author not in self.authors:
 				self.authors[author] = {}
-			# commits
+			# commits, note again that commits may be in any date order because of cherry-picking and patches
 			if 'last_commit_stamp' not in self.authors[author]:
 				self.authors[author]['last_commit_stamp'] = stamp
-			self.authors[author]['first_commit_stamp'] = stamp
-			self.authors[author]['commits'] = self.authors[author].get('commits', 0) + 1
+			if stamp > self.authors[author]['last_commit_stamp']:
+				self.authors[author]['last_commit_stamp'] = stamp
+			if 'first_commit_stamp' not in self.authors[author]:
+				self.authors[author]['first_commit_stamp'] = stamp
+			if stamp < self.authors[author]['first_commit_stamp']:
+				self.authors[author]['first_commit_stamp'] = stamp
 
 			# author of the month/year
 			yymm = date.strftime('%Y-%m')
@@ -334,10 +364,10 @@ class GitDataCollector(DataCollector):
 			yymmdd = date.strftime('%Y-%m-%d')
 			if 'last_active_day' not in self.authors[author]:
 				self.authors[author]['last_active_day'] = yymmdd
-				self.authors[author]['active_days'] = 1
+				self.authors[author]['active_days'] = set([yymmdd])
 			elif yymmdd != self.authors[author]['last_active_day']:
 				self.authors[author]['last_active_day'] = yymmdd
-				self.authors[author]['active_days'] += 1
+				self.authors[author]['active_days'].add(yymmdd)
 
 			# project: active days
 			if yymmdd != self.last_active_day:
@@ -349,7 +379,6 @@ class GitDataCollector(DataCollector):
 
 		# TODO Optimize this, it's the worst bottleneck
 		# outputs "<stamp> <files>" for each revision
-		self.files_by_stamp = {} # stamp -> files
 		revlines = getpipeoutput(['git rev-list --pretty=format:"%%at %%T" %s' % getcommitrange('HEAD'), 'grep -v ^commit']).strip().split('\n')
 		lines = []
 		for revline in revlines:
@@ -357,7 +386,7 @@ class GitDataCollector(DataCollector):
 			linecount = self.getFilesInCommit(rev)
 			lines.append('%d %d' % (int(time), linecount))
 
-		self.total_commits = len(lines)
+		self.total_commits += len(lines)
 		for line in lines:
 			parts = line.split(' ')
 			if len(parts) != 2:
@@ -369,9 +398,8 @@ class GitDataCollector(DataCollector):
 				print 'Warning: failed to parse line "%s"' % line
 
 		# extensions
-		self.extensions = {} # extension -> files, lines
 		lines = getpipeoutput(['git ls-tree -r -z %s' % getcommitrange('HEAD', end_only = True)]).split('\000')
-		self.total_files = len(lines)
+		self.total_files += len(lines)
 		for line in lines:
 			if len(line) == 0:
 				continue
@@ -400,7 +428,12 @@ class GitDataCollector(DataCollector):
 		#  N files changed, N insertions (+), N deletions(-)
 		# <stamp> <author>
 		self.changes_by_date = {} # stamp -> { files, ins, del }
-		lines = getpipeoutput(['git log --shortstat --pretty=format:"%%at %%aN" %s' % getcommitrange('HEAD')]).split('\n')
+		# computation of lines of code by date is better done
+		# on a linear history.
+		extra = ''
+		if conf['linear_linestats']:
+			extra = '--first-parent -m'
+		lines = getpipeoutput(['git log --shortstat %s --pretty=format:"%%at %%aN" %s' % (extra, getcommitrange('HEAD'))]).split('\n')
 		lines.reverse()
 		files = 0; inserted = 0; deleted = 0; total_lines = 0
 		author = None
@@ -415,10 +448,6 @@ class GitDataCollector(DataCollector):
 					try:
 						(stamp, author) = (int(line[:pos]), line[pos+1:])
 						self.changes_by_date[stamp] = { 'files': files, 'ins': inserted, 'del': deleted, 'lines': total_lines }
-						if author not in self.authors:
-							self.authors[author] = { 'lines_added' : 0, 'lines_removed' : 0 }
-						self.authors[author]['lines_added'] = self.authors[author].get('lines_added', 0) + inserted
-						self.authors[author]['lines_removed'] = self.authors[author].get('lines_removed', 0) + deleted
 						files, inserted, deleted = 0, 0, 0
 					except ValueError:
 						print 'Warning: unexpected line "%s"' % line
@@ -437,13 +466,64 @@ class GitDataCollector(DataCollector):
 					(files, inserted, deleted) = (0, 0, 0)
 				#self.changes_by_date[stamp] = { 'files': files, 'ins': inserted, 'del': deleted }
 		self.total_lines = total_lines
+
+		# Per-author statistics
+
+		# defined for stamp, author only if author commited at this timestamp.
+		self.changes_by_date_by_author = {} # stamp -> author -> lines_added
+
+		# Similar to the above, but never use --first-parent
+		# (we need to walk through every commit to know who
+		# committed what, not just through mainline)
+		lines = getpipeoutput(['git log --shortstat --date-order --pretty=format:"%%at %%aN" %s' % (getcommitrange('HEAD'))]).split('\n')
+		lines.reverse()
+		files = 0; inserted = 0; deleted = 0
+		author = None
+		stamp = 0
+		for line in lines:
+			if len(line) == 0:
+				continue
+
+			# <stamp> <author>
+			if line.find('files changed,') == -1:
+				pos = line.find(' ')
+				if pos != -1:
+					try:
+						oldstamp = stamp
+						(stamp, author) = (int(line[:pos]), line[pos+1:])
+						if oldstamp > stamp:
+							# clock skew, keep old timestamp to avoid having ugly graph
+							stamp = oldstamp
+						if author not in self.authors:
+							self.authors[author] = { 'lines_added' : 0, 'lines_removed' : 0, 'commits' : 0}
+						self.authors[author]['commits'] = self.authors[author].get('commits', 0) + 1
+						self.authors[author]['lines_added'] = self.authors[author].get('lines_added', 0) + inserted
+						self.authors[author]['lines_removed'] = self.authors[author].get('lines_removed', 0) + deleted
+						if stamp not in self.changes_by_date_by_author:
+							self.changes_by_date_by_author[stamp] = {}
+						if author not in self.changes_by_date_by_author[stamp]:
+							self.changes_by_date_by_author[stamp][author] = {}
+						self.changes_by_date_by_author[stamp][author]['lines_added'] = self.authors[author]['lines_added']
+						self.changes_by_date_by_author[stamp][author]['commits'] = self.authors[author]['commits']
+						files, inserted, deleted = 0, 0, 0
+					except ValueError:
+						print 'Warning: unexpected line "%s"' % line
+				else:
+					print 'Warning: unexpected line "%s"' % line
+			else:
+				numbers = re.findall('\d+', line)
+				if len(numbers) == 3:
+					(files, inserted, deleted) = map(lambda el : int(el), numbers)
+				else:
+					print 'Warning: failed to handle line "%s"' % line
+					(files, inserted, deleted) = (0, 0, 0)
 	
 	def refine(self):
 		# authors
 		# name -> {place_by_commits, commits_frac, date_first, date_last, timedelta}
-		authors_by_commits = getkeyssortedbyvaluekey(self.authors, 'commits')
-		authors_by_commits.reverse() # most first
-		for i, name in enumerate(authors_by_commits):
+		self.authors_by_commits = getkeyssortedbyvaluekey(self.authors, 'commits')
+		self.authors_by_commits.reverse() # most first
+		for i, name in enumerate(self.authors_by_commits):
 			self.authors[name]['place_by_commits'] = i + 1
 
 		for name in self.authors.keys():
@@ -455,6 +535,8 @@ class GitDataCollector(DataCollector):
 			a['date_first'] = date_first.strftime('%Y-%m-%d')
 			a['date_last'] = date_last.strftime('%Y-%m-%d')
 			a['timedelta'] = delta
+			if 'lines_added' not in a: a['lines_added'] = 0
+			if 'lines_removed' not in a: a['lines_removed'] = 0
 	
 	def getActiveDays(self):
 		return self.active_days
@@ -577,7 +659,7 @@ class HTMLReportCreator(ReportCreator):
 		f.write('<dl>')
 		f.write('<dt>Project name</dt><dd>%s</dd>' % (data.projectname))
 		f.write('<dt>Generated</dt><dd>%s (in %d seconds)</dd>' % (datetime.datetime.now().strftime(format), time.time() - data.getStampCreated()))
-		f.write('<dt>Generator</dt><dd><a href="http://gitstats.sourceforge.net/">GitStats</a> (version %s)</dd>' % getversion())
+		f.write('<dt>Generator</dt><dd><a href="http://gitstats.sourceforge.net/">GitStats</a> (version %s), %s, %s</dd>' % (getversion(), getgitversion(), getgnuplotversion()))
 		f.write('<dt>Report Period</dt><dd>%s to %s</dd>' % (data.getFirstCommitDate().strftime(format), data.getLastCommitDate().strftime(format)))
 		f.write('<dt>Age</dt><dd>%d days, %d active days (%3.2f%%)</dd>' % (data.getCommitDeltaDays(), len(data.getActiveDays()), (100.0 * len(data.getActiveDays()) / data.getCommitDeltaDays())))
 		f.write('<dt>Total Files</dt><dd>%s</dd>' % data.getTotalFiles())
@@ -785,13 +867,55 @@ class HTMLReportCreator(ReportCreator):
 		f.write('<tr><th>Author</th><th>Commits (%)</th><th>+ lines</th><th>- lines</th><th>First commit</th><th>Last commit</th><th class="unsortable">Age</th><th>Active days</th><th># by commits</th></tr>')
 		for author in data.getAuthors(conf['max_authors']):
 			info = data.getAuthorInfo(author)
-			f.write('<tr><td>%s</td><td>%d (%.2f%%)</td><td>%d</td><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%d</td></tr>' % (author, info['commits'], info['commits_frac'], info['lines_added'], info['lines_removed'], info['date_first'], info['date_last'], info['timedelta'], info['active_days'], info['place_by_commits']))
+			f.write('<tr><td>%s</td><td>%d (%.2f%%)</td><td>%d</td><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%d</td></tr>' % (author, info['commits'], info['commits_frac'], info['lines_added'], info['lines_removed'], info['date_first'], info['date_last'], info['timedelta'], len(info['active_days']), info['place_by_commits']))
 		f.write('</table>')
 
 		allauthors = data.getAuthors()
 		if len(allauthors) > conf['max_authors']:
 			rest = allauthors[conf['max_authors']:]
 			f.write('<p class="moreauthors">These didn\'t make it to the top: %s</p>' % ', '.join(rest))
+
+		f.write(html_header(2, 'Cumulated Added Lines of Code per Author'))
+		f.write('<img src="lines_of_code_by_author.png" alt="Lines of code per Author" />')
+		if len(allauthors) > conf['max_authors']:
+			f.write('<p class="moreauthors">Only top %d authors shown</p>' % conf['max_authors'])
+
+		f.write(html_header(2, 'Commits per Author'))
+		f.write('<img src="commits_by_author.png" alt="Commits per Author" />')
+		if len(allauthors) > conf['max_authors']:
+			f.write('<p class="moreauthors">Only top %d authors shown</p>' % conf['max_authors'])
+
+		fgl = open(path + '/lines_of_code_by_author.dat', 'w')
+		fgc = open(path + '/commits_by_author.dat', 'w')
+
+		lines_by_authors = {} # cumulated added lines by
+		# author. to save memory,
+		# changes_by_date_by_author[stamp][author] is defined
+		# only at points where author commits.
+		# lines_by_authors allows us to generate all the
+		# points in the .dat file.
+
+		# Don't rely on getAuthors to give the same order each
+		# time. Be robust and keep the list in a variable.
+		commits_by_authors = {} # cumulated added lines by
+
+		self.authors_to_plot = data.getAuthors(conf['max_authors'])
+		for author in self.authors_to_plot:
+			lines_by_authors[author] = 0
+			commits_by_authors[author] = 0
+		for stamp in sorted(data.changes_by_date_by_author.keys()):
+			fgl.write('%d' % stamp)
+			fgc.write('%d' % stamp)
+			for author in self.authors_to_plot:
+				if author in data.changes_by_date_by_author[stamp].keys():
+					lines_by_authors[author] = data.changes_by_date_by_author[stamp][author]['lines_added']
+					commits_by_authors[author] = data.changes_by_date_by_author[stamp][author]['commits']
+				fgl.write(' %d' % lines_by_authors[author])
+				fgc.write(' %d' % commits_by_authors[author])
+			fgl.write('\n')
+			fgc.write('\n')
+		fgl.close()
+		fgc.close()
 
 		# Authors :: Author of Month
 		f.write(html_header(2, 'Author of Month'))
@@ -926,8 +1050,8 @@ class HTMLReportCreator(ReportCreator):
 		tags_sorted_by_date_desc = map(lambda el : el[1], reversed(sorted(map(lambda el : (el[1]['date'], el[0]), data.tags.items()))))
 		for tag in tags_sorted_by_date_desc:
 			authorinfo = []
-			authors_by_commits = getkeyssortedbyvalues(data.tags[tag]['authors'])
-			for i in reversed(authors_by_commits):
+			self.authors_by_commits = getkeyssortedbyvalues(data.tags[tag]['authors'])
+			for i in reversed(self.authors_by_commits):
 				authorinfo.append('%s (%d)' % (i, data.tags[tag]['authors'][i]))
 			f.write('<tr><td>%s</td><td>%s</td><td>%d</td><td>%s</td></tr>' % (tag, data.tags[tag]['date'], data.tags[tag]['commits'], ', '.join(authorinfo)))
 		f.write('</table>')
@@ -1010,7 +1134,7 @@ unset key
 set xdata time
 set timefmt "%Y-%m"
 set format x "%Y-%m"
-set xtics rotate by 90 15768000
+set xtics rotate
 set bmargin 5
 set grid y
 set ylabel "Commits"
@@ -1025,7 +1149,7 @@ plot 'commits_by_year_month.dat' using 1:2:(0.5) w boxes fs solid
 """
 set output 'commits_by_year.png'
 unset key
-set xtics 1 rotate by 90
+set xtics 1 rotate
 set grid y
 set ylabel "Commits"
 set yrange [0:]
@@ -1045,7 +1169,7 @@ set timefmt "%Y-%m-%d"
 set format x "%Y-%m-%d"
 set grid y
 set ylabel "Files"
-set xtics rotate by 90
+set xtics rotate
 set ytics autofreq
 set bmargin 6
 plot 'files_by_date.dat' using 1:2 w steps
@@ -1064,10 +1188,64 @@ set timefmt "%s"
 set format x "%Y-%m-%d"
 set grid y
 set ylabel "Lines"
-set xtics rotate by 90
+set xtics rotate
 set bmargin 6
 plot 'lines_of_code.dat' using 1:2 w lines
 """)
+		f.close()
+
+		# Lines of Code Added per author
+		f = open(path + '/lines_of_code_by_author.plot', 'w')
+		f.write(GNUPLOT_COMMON)
+		f.write(
+"""
+set terminal png transparent size 640,480
+set output 'lines_of_code_by_author.png'
+set key left top
+set xdata time
+set timefmt "%s"
+set format x "%Y-%m-%d"
+set grid y
+set ylabel "Lines"
+set xtics rotate
+set bmargin 6
+plot """
+)
+		i = 1
+		plots = []
+		for a in self.authors_to_plot:
+			i = i + 1
+			plots.append("""'lines_of_code_by_author.dat' using 1:%d title "%s" w lines""" % (i, a.replace("\"", "\\\"")))
+		f.write(", ".join(plots))
+		f.write('\n')
+
+		f.close()
+
+		# Commits per author
+		f = open(path + '/commits_by_author.plot', 'w')
+		f.write(GNUPLOT_COMMON)
+		f.write(
+"""
+set terminal png transparent size 640,480
+set output 'commits_by_author.png'
+set key left top
+set xdata time
+set timefmt "%s"
+set format x "%Y-%m-%d"
+set grid y
+set ylabel "Commits"
+set xtics rotate
+set bmargin 6
+plot """
+)
+		i = 1
+		plots = []
+		for a in self.authors_to_plot:
+			i = i + 1
+			plots.append("""'commits_by_author.dat' using 1:%d title "%s" w lines""" % (i, a.replace("\"", "\\\"")))
+		f.write(", ".join(plots))
+		f.write('\n')
+
 		f.close()
 
 		os.chdir(path)
@@ -1121,7 +1299,7 @@ class GitStats:
 
 		if len(args) < 2:
 			print """
-Usage: gitstats [options] <gitpath> <outputpath>
+Usage: gitstats [options] <gitpath..> <outputpath>
 
 Options:
 -c key=value     Override configuration value
@@ -1131,8 +1309,7 @@ Default config values:
 """ % conf
 			sys.exit(0)
 
-		gitpath = args[0]
-		outputpath = os.path.abspath(args[1])
+		outputpath = os.path.abspath(args[-1])
 		rundir = os.getcwd()
 
 		try:
@@ -1143,17 +1320,20 @@ Default config values:
 			print 'FATAL: Output path is not a directory or does not exist'
 			sys.exit(1)
 
-		print 'Git path: %s' % gitpath
 		print 'Output path: %s' % outputpath
-
-		os.chdir(gitpath)
-
 		cachefile = os.path.join(outputpath, 'gitstats.cache')
 
-		print 'Collecting data...'
 		data = GitDataCollector()
 		data.loadCache(cachefile)
-		data.collect(gitpath)
+
+		for gitpath in args[0:-1]:
+			print 'Git path: %s' % gitpath
+
+			os.chdir(gitpath)
+
+			print 'Collecting data...'
+			data.collect(gitpath)
+
 		print 'Refining data...'
 		data.saveCache(cachefile)
 		data.refine()
@@ -1168,6 +1348,7 @@ Default config values:
 		exectime_internal = time_end - time_start
 		print 'Execution time %.5f secs, %.5f secs (%.2f %%) in external commands)' % (exectime_internal, exectime_external, (100.0 * exectime_external) / exectime_internal)
 
-g = GitStats()
-g.run(sys.argv[1:])
+if __name__=='__main__':
+	g = GitStats()
+	g.run(sys.argv[1:])
 
