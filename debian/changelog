@@ -1,3 +1,9 @@
+gitstats (2011.02.09-1) unstable; urgency=low
+
+  * Pulling new upstream revisions (until f1ab9e83)
+
+ -- Vincent Fourmond <fourmond@debian.org>  Fri, 11 Feb 2011 14:06:31 +0100
+
 gitstats (2010.09.28-1) unstable; urgency=low
 
   * Pulling new upstream revisions (until dc0bbb2)
