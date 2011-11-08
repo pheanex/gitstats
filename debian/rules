@@ -9,11 +9,14 @@ VERSION =  $(shell dpkg-parsechangelog | egrep '^Version' | \
         sed -r 's/Version:\s*//' | sed -r 's/^[0-9]+://' | \
         sed -r 's/(\.dfsg)?-[0-9.]+//')
 
+build-arch:
 
-build:
+build-indep:
 	mkdir -p $(TMPDIR)
 	cat gitstats | perl -p -e 's/VERSION = 0/VERSION = "$(VERSION)"/' > $(TMPDIR)/gitstats
 	pod2man --center "User Commands" -r $(VERSION) doc/gitstats.pod > doc/gitstats.1
+
+build: build-arch build-indep
 
 
 clean:

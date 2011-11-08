@@ -1,8 +1,10 @@
 gitstats (2011.11.08-1) unstable; urgency=low
 
   * Pulling in new upstream revisions (closes: #648007)
+  * Add build-indep/build-arch targets in debian/rules
+  * Conforms to newer standards
 
- -- Vincent Fourmond <fourmond@debian.org>  Tue, 08 Nov 2011 18:36:21 +0100
+ -- Vincent Fourmond <fourmond@debian.org>  Tue, 08 Nov 2011 18:52:58 +0100
 
 gitstats (2011.02.09-1) unstable; urgency=low
 
