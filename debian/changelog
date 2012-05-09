@@ -1,3 +1,12 @@
+gitstats (2012.05.10-1) unstable; urgency=low
+
+  * Pulling in new upstream revisions
+  * Use unversioned dependencies on gnuplot-nox so that they are satisfied 
+    by virtual packages (closes: #671599)
+  * Now conforms to standards 3.9.3
+
+ -- Vincent Fourmond <fourmond@debian.org>  Thu, 10 May 2012 00:43:33 +0200
+
 gitstats (2011.11.08-1) unstable; urgency=low
 
   * Pulling in new upstream revisions (closes: #648007)
