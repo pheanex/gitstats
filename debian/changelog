@@ -1,3 +1,10 @@
+gitstats (2012.05.28-1) unstable; urgency=low
+
+  * Pulling in new upstream revisions
+    - now calling all subprocesses with LANG=C (closes: #674845)
+
+ -- Vincent Fourmond <fourmond@debian.org>  Mon, 28 May 2012 22:09:51 +0200
+
 gitstats (2012.05.10-1) unstable; urgency=low
 
   * Pulling in new upstream revisions
