@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2007-2011 Heikki Hokkanen <hoxu@users.sf.net> & others (see doc/author.txt)
+# Copyright (c) 2007-2012 Heikki Hokkanen <hoxu@users.sf.net> & others (see doc/author.txt)
 # GPLv2 / GPLv3
 import datetime
 import getopt
@@ -13,6 +13,8 @@ import subprocess
 import sys
 import time
 import zlib
+
+os.environ['LC_ALL'] = 'C'
 
 GNUPLOT_COMMON = 'set terminal png transparent size 640,240\nset size 1.0,1.0\n'
 ON_LINUX = (platform.system() == 'Linux')
@@ -73,6 +75,18 @@ def getkeyssortedbyvalues(dict):
 # dict['author'] = { 'commits': 512 } - ...key(dict, 'commits')
 def getkeyssortedbyvaluekey(d, key):
 	return map(lambda el : el[1], sorted(map(lambda el : (d[el][key], el), d.keys())))
+
+def getstatsummarycounts(line):
+	numbers = re.findall('\d+', line)
+	if   len(numbers) == 1:
+		# neither insertions nor deletions: may probably only happen for "0 files changed"
+		numbers.append(0);
+		numbers.append(0);
+	elif len(numbers) == 2 and line.find('(+)') != -1:
+		numbers.append(0);    # only insertions were printed on line
+	elif len(numbers) == 2 and line.find('(-)') != -1:
+		numbers.insert(1, 0); # only deletions were printed on line
+	return numbers
 
 VERSION = 0
 def getversion():
@@ -456,7 +470,7 @@ class GitDataCollector(DataCollector):
 				continue
 
 			# <stamp> <author>
-			if line.find('files changed,') == -1:
+			if re.search('files? changed', line) == None:
 				pos = line.find(' ')
 				if pos != -1:
 					try:
@@ -478,7 +492,8 @@ class GitDataCollector(DataCollector):
 				else:
 					print 'Warning: unexpected line "%s"' % line
 			else:
-				numbers = re.findall('\d+', line)
+				numbers = getstatsummarycounts(line)
+
 				if len(numbers) == 3:
 					(files, inserted, deleted) = map(lambda el : int(el), numbers)
 					total_lines += inserted
@@ -510,7 +525,7 @@ class GitDataCollector(DataCollector):
 				continue
 
 			# <stamp> <author>
-			if line.find('files changed,') == -1:
+			if re.search('files? changed', line) == None:
 				pos = line.find(' ')
 				if pos != -1:
 					try:
@@ -536,7 +551,8 @@ class GitDataCollector(DataCollector):
 				else:
 					print 'Warning: unexpected line "%s"' % line
 			else:
-				numbers = re.findall('\d+', line)
+				numbers = getstatsummarycounts(line);
+
 				if len(numbers) == 3:
 					(files, inserted, deleted) = map(lambda el : int(el), numbers)
 				else:
@@ -581,7 +597,7 @@ class GitDataCollector(DataCollector):
 		return res[:limit]
 	
 	def getCommitDeltaDays(self):
-		return (self.last_commit_stamp - self.first_commit_stamp) / 86400 + 1
+		return (self.last_commit_stamp / 86400 - self.first_commit_stamp / 86400) + 1
 
 	def getDomainInfo(self, domain):
 		return self.domains[domain]
