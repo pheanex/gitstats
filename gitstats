@@ -40,6 +40,7 @@ conf = {
 	'commit_end': 'HEAD',
 	'linear_linestats': 1,
 	'project_name': '',
+	'merge_authors': {}
 }
 
 def getpipeoutput(cmds, quiet = False):
@@ -92,14 +93,16 @@ VERSION = 0
 def getversion():
 	global VERSION
 	if VERSION == 0:
-		VERSION = getpipeoutput(["git rev-parse --short %s" % getcommitrange('HEAD')]).split('\n')[0]
+		gitstats_repo = os.path.dirname(os.path.abspath(__file__))
+		VERSION = getpipeoutput(["git --git-dir=%s/.git --work-tree=%s rev-parse --short %s" %
+			(gitstats_repo, gitstats_repo, getcommitrange('HEAD').split('\n')[0])])
 	return VERSION
 
 def getgitversion():
 	return getpipeoutput(['git --version']).split('\n')[0]
 
 def getgnuplotversion():
-	return getpipeoutput(['gnuplot --version']).split('\n')[0]
+	return getpipeoutput(['%s --version' % gnuplot_cmd]).split('\n')[0]
 
 class DataCollector:
 	"""Manages data collection from a revision control repository."""
@@ -248,10 +251,7 @@ class GitDataCollector(DataCollector):
 	def collect(self, dir):
 		DataCollector.collect(self, dir)
 
-		try:
-			self.total_authors += int(getpipeoutput(['git shortlog -s %s' % getcommitrange(), 'wc -l']))
-		except:
-			self.total_authors = 0
+		self.total_authors += int(getpipeoutput(['git shortlog -s %s' % getcommitrange(), 'wc -l']))
 		#self.total_lines = int(getoutput('git-ls-files -z |xargs -0 cat |wc -l'))
 
 		# tags
@@ -287,6 +287,8 @@ class GitDataCollector(DataCollector):
 				parts = re.split('\s+', line, 2)
 				commits = int(parts[1])
 				author = parts[2]
+				if author in conf['merge_authors']:
+					author = conf['merge_authors'][author]
 				self.tags[tag]['commits'] += commits
 				self.tags[tag]['authors'][author] = commits
 
@@ -303,6 +305,8 @@ class GitDataCollector(DataCollector):
 			timezone = parts[3]
 			author, mail = parts[4].split('<', 1)
 			author = author.rstrip()
+			if author in conf['merge_authors']:
+				author = conf['merge_authors'][author]
 			mail = mail.rstrip('>')
 			domain = '?'
 			if mail.find('@') != -1:
@@ -475,6 +479,8 @@ class GitDataCollector(DataCollector):
 				if pos != -1:
 					try:
 						(stamp, author) = (int(line[:pos]), line[pos+1:])
+						if author in conf['merge_authors']:
+							author = conf['merge_authors'][author]
 						self.changes_by_date[stamp] = { 'files': files, 'ins': inserted, 'del': deleted, 'lines': total_lines }
 
 						date = datetime.datetime.fromtimestamp(stamp)
@@ -531,6 +537,8 @@ class GitDataCollector(DataCollector):
 					try:
 						oldstamp = stamp
 						(stamp, author) = (int(line[:pos]), line[pos+1:])
+						if author in conf['merge_authors']:
+							author = conf['merge_authors'][author]
 						if oldstamp > stamp:
 							# clock skew, keep old timestamp to avoid having ugly graph
 							stamp = oldstamp
@@ -1019,7 +1027,10 @@ class HTMLReportCreator(ReportCreator):
 		f.write('<dl>\n')
 		f.write('<dt>Total files</dt><dd>%d</dd>' % data.getTotalFiles())
 		f.write('<dt>Total lines</dt><dd>%d</dd>' % data.getTotalLOC())
-		f.write('<dt>Average file size</dt><dd>%.2f bytes</dd>' % (float(data.getTotalSize()) / data.getTotalFiles()))
+		try:
+			f.write('<dt>Average file size</dt><dd>%.2f bytes</dd>' % (float(data.getTotalSize()) / data.getTotalFiles()))
+		except ZeroDivisionError:
+			pass
 		f.write('</dl>\n')
 
 		# Files :: File count by date
@@ -1047,7 +1058,11 @@ class HTMLReportCreator(ReportCreator):
 		for ext in sorted(data.extensions.keys()):
 			files = data.extensions[ext]['files']
 			lines = data.extensions[ext]['lines']
-			f.write('<tr><td>%s</td><td>%d (%.2f%%)</td><td>%d (%.2f%%)</td><td>%d</td></tr>' % (ext, files, (100.0 * files) / data.getTotalFiles(), lines, (100.0 * lines) / data.getTotalLOC(), lines / files))
+			try:
+				loc_percentage = (100.0 * lines) / data.getTotalLOC()
+			except ZeroDivisionError:
+				loc_percentage = 0
+			f.write('<tr><td>%s</td><td>%d (%.2f%%)</td><td>%d (%.2f%%)</td><td>%d</td></tr>' % (ext, files, (100.0 * files) / data.getTotalFiles(), lines, loc_percentage, lines / files))
 		f.write('</table>')
 
 		f.write('</body></html>')
@@ -1338,6 +1353,9 @@ class GitStats:
 					raise KeyError('no such key "%s" in config' % key)
 				if isinstance(conf[key], int):
 					conf[key] = int(value)
+				elif isinstance(conf[key], dict):
+					kk,vv = value.split(',', 1)
+					conf[key][kk] = vv
 				else:
 					conf[key] = value
 
@@ -1362,6 +1380,10 @@ Default config values:
 			pass
 		if not os.path.isdir(outputpath):
 			print 'FATAL: Output path is not a directory or does not exist'
+			sys.exit(1)
+
+		if not getgnuplotversion():
+			print 'gnuplot not found'
 			sys.exit(1)
 
 		print 'Output path: %s' % outputpath
