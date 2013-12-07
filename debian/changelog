@@ -1,3 +1,10 @@
+gitstats (2013.12.07-1) unstable; urgency=low
+
+  * Pulling in new upstream revisions, until c447e55a7 (closes: #731469)
+  * Conforms to standards 3.9.5
+
+ -- Vincent Fourmond <fourmond@debian.org>  Sat, 07 Dec 2013 22:31:07 +0100
+
 gitstats (2012.08.30-1) unstable; urgency=low
 
   * Pulling in new upstream revisions
