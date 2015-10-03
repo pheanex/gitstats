@@ -1,3 +1,11 @@
+gitstats (2015.10.03-1) unstable; urgency=medium
+
+  * Pulling in new upstream revisions, until e35fea2b9a3 (closes: #800731)
+  * Patch fix-shebang.diff to ensure python 2.7 is used
+  * Update various meta-data
+
+ -- Vincent Fourmond <fourmond@debian.org>  Sat, 03 Oct 2015 22:35:35 +0200
+
 gitstats (2013.12.07-1) unstable; urgency=low
 
   * Pulling in new upstream revisions, until c447e55a7 (closes: #731469)
